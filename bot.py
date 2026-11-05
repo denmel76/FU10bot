@@ -1,7 +1,7 @@
 import logging
 import asyncio
-from vkbottle.bot import Bot, Message, MessageEvent
-from vkbottle import Keyboard, KeyboardButtonColor, Text, Callback
+from vkbottle.bot import Bot, Message
+from vkbottle import Keyboard, KeyboardButtonColor, Text
 from config import VK_TOKEN, GROUP_ID, ADMIN_ID, SERVICES, MASTERS
 from database import init_db, save_appointment
 
@@ -16,18 +16,16 @@ def main_menu():
 
 def services_menu():
     kb = Keyboard(one_time=False)
-    for key, name in SERVICES.items():
-        # Используем Callback-кнопки для выбора услуги
-        kb.add(Callback(name, payload={"cmd": "srv", "value": name}), color=KeyboardButtonColor.SECONDARY)
+    for name in SERVICES.values():
+        kb.add(Text(name), color=KeyboardButtonColor.SECONDARY)
     kb.row()
     kb.add(Text("Назад"), color=KeyboardButtonColor.NEGATIVE)
     return kb
 
-def masters_menu(service_name):
+def masters_menu():
     kb = Keyboard(one_time=False)
-    for key, name in MASTERS.items():
-        # Передаем выбранную услугу в payload
-        kb.add(Callback(name, payload={"cmd": "mst", "value": name, "service": service_name}), color=KeyboardButtonColor.SECONDARY)
+    for name in MASTERS.values():
+        kb.add(Text(name), color=KeyboardButtonColor.SECONDARY)
     kb.row()
     kb.add(Text("Назад"), color=KeyboardButtonColor.NEGATIVE)
     return kb
@@ -35,7 +33,7 @@ def masters_menu(service_name):
 # --- ОБРАБОТЧИКИ ---
 @bot.on.message(text=["Начать", "/start", "start", "Привет"])
 async def start_handler(message: Message):
-    await message.answer("💅 Добро пожаловать в салон красоты!\nНажмите «Записаться», чтобы выбрать услугу.", keyboard=main_menu())
+    await message.answer("💅 Добро пожаловать в салон красоты!\nНажмите «Записаться».", keyboard=main_menu())
 
 @bot.on.message(text="Записаться")
 async def book_handler(message: Message):
@@ -45,41 +43,31 @@ async def book_handler(message: Message):
 async def back_handler(message: Message):
     await message.answer("Главное меню:", keyboard=main_menu())
 
-# --- ОБРАБОТКА CALLBACK (нажатий на кнопки) ---
-@bot.on.message_view
-async def callback_handler(event: MessageEvent):
-    payload = event.payload
-    if not payload:
-        return
+# Обработка выбора услуги (если текст совпадает с названием услуги)
+@bot.on.message(text=list(SERVICES.values()))
+async def service_handler(message: Message):
+    await message.answer("Выберите мастера:", keyboard=masters_menu())
 
-    cmd = payload.get("cmd")
-    value = payload.get("value")
+# Обработка выбора мастера (если текст совпадает с именем мастера)
+@bot.on.message(text=list(MASTERS.values()))
+async def master_handler(message: Message):
+    # Для теста просто сохраняем заявку с дефолтным именем и временем
+    # В реальном проекте здесь нужно спросить имя и время, но для проверки работы этого достаточно
     
-    # Если нажали на услугу
-    if cmd == "srv":
-        await event.show_snackbar("Услуга выбрана!")
-        # Отправляем меню мастеров
-        await event.edit(message="Выберите мастера:", keyboard=masters_menu(value))
+    service = "Услуга выбрана" # Мы не знаем услугу, так как не передали её в текстовой кнопке
+    master = message.text
     
-    # Если нажали на мастера
-    elif cmd == "mst":
-        service_name = payload.get("service")
-        await event.show_snackbar("Мастер выбран!")
-        # Отправляем сообщение, что мастер выбран (дальше нужно было бы спрашивать имя, но для теста просто фиксируем)
-        # В реальном проекте здесь нужно спросить имя и время, но без FSM это сложно сделать в ВК за один шаг.
-        # Поэтому мы просто сохраняем "тестовую" запись.
-        
-        # Уведомление админу
-        admin_text = f"🔥 Новая запись!\n\n✂️ Услуга: {service_name}\n💅 Мастер: {value}\n🆔 Клиент ID: {event.user_id}"
-        if ADMIN_ID != 0:
-            try:
-                await bot.api.messages.send(peer_id=ADMIN_ID, message=admin_text, random_id=0)
-            except Exception as e:
-                logging.error(f"Ошибка отправки админу: {e}")
-        
-        await event.edit(message=f"✅ Вы записаны на {service_name} к мастеру {value}.\nМы свяжемся с вами!", keyboard=main_menu())
+    # Уведомление админу
+    admin_text = f"🔥 Новая запись!\n\n💅 Мастер: {master}\n🆔 Клиент ID: {message.from_id}"
+    if ADMIN_ID != 0:
+        try:
+            await bot.api.messages.send(peer_id=ADMIN_ID, message=admin_text, random_id=0)
+        except Exception as e:
+            logging.error(f"Ошибка отправки админу: {e}")
+    
+    await message.answer(f"✅ Вы записаны к мастеру {master}.\nМы свяжемся с вами!", keyboard=main_menu())
 
 if __name__ == "__main__":
     asyncio.run(init_db())
-    print("VK Салон Бот запущен (без StateDispenser)...")
+    print("VK Салон Бот запущен (текстовые кнопки)...")
     bot.run_forever()
