@@ -46,7 +46,7 @@ async def back_handler(message: Message):
     await message.answer("Главное меню:", keyboard=main_menu())
 
 # --- ОБРАБОТКА CALLBACK (нажатий на кнопки) ---
-@bot.on.message_view()
+@bot.on.message_view
 async def callback_handler(event: MessageEvent):
     payload = event.payload
     if not payload:
