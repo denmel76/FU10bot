@@ -68,6 +68,9 @@ async def master_handler(message: Message):
     await message.answer(f"✅ Вы записаны к мастеру {master}.\nМы свяжемся с вами!", keyboard=main_menu())
 
 if __name__ == "__main__":
+    import asyncio
+    # Создаем базу данных перед запуском
     asyncio.run(init_db())
     print("VK Салон Бот запущен (текстовые кнопки)...")
-    bot.run_forever()
+    # Запускаем бота через asyncio
+    asyncio.run(bot.run_polling())
