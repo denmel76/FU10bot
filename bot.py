@@ -1,7 +1,7 @@
 import logging
 from vkbottle.bot import Bot, Message
 from vkbottle import Keyboard, KeyboardButtonColor, Text
-from vkbottle.dispatch.dispenser import BaseStateGroup, StateDispenser
+from vkbottle import BaseStateGroup, StateDispenser
 from config import VK_TOKEN, GROUP_ID, ADMIN_ID, SERVICES, MASTERS
 from database import init_db, save_appointment
 
